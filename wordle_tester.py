@@ -7,10 +7,6 @@ Optionally writes a matplotlib graph to disk.
 Examples:
   python3 wordle_tester.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --limit 200
   python3 wordle_tester.py --guess-space candidates --max-turns 6 --plot results.png
-
-Notes:
-- If you don't have dependencies installed yet, you can still run without graphs.
-- Use --plot to require matplotlib.
 """
 
 from __future__ import annotations
@@ -235,8 +231,6 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if args.words:
         allowed = wordle.load_words_from_file(args.words)
-    else:
-        allowed = _load_default_allowed()
 
     if not allowed:
         print("Loaded 0 allowed guesses.", file=sys.stderr)

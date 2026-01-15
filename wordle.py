@@ -8,19 +8,13 @@ You play Wordle elsewhere; after each guess you type the feedback pattern here.
 Feedback format:
 - Use 5 letters of: g (green), y (yellow), b (black/gray)
   Example: "bygyb"
-- Or 5 digits: 2 (green), 1 (yellow), 0 (gray)
-  Example: "02120"
 
 Word list:
-- By default, it tries to load 5-letter words from /usr/share/dict/words (Linux).
-- You can pass --words and optionally --answers to use official lists (recommended).
+- Pass --words and optionally --answers to use custom word lists.
 
 Usage:
-  python3 wordle.py
   python3 wordle.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
 """
-
-from __future__ import annotations
 
 import argparse
 import hashlib
@@ -64,19 +58,6 @@ def load_words_from_file(path: str) -> List[str]:
             seen.add(w)
             out.append(w)
     return out
-
-
-def default_word_source() -> str | None:
-    candidates = [
-        "/usr/share/dict/words",           # common on Linux
-        "/usr/dict/words",
-        "/usr/share/dict/web2",            # some distros
-    ]
-    for p in candidates:
-        if os.path.exists(p):
-            return p
-    return None
-
 
 def wordle_feedback(secret: str, guess: str) -> Pattern:
     """
@@ -275,10 +256,8 @@ def cli():
 
     words_path = args.words
     if words_path is None:
-        words_path = default_word_source()
-        if words_path is None:
-            print("No default word list found. Provide one with --words.", file=sys.stderr)
-            sys.exit(1)
+        print("No default word list found. Provide one with --words.", file=sys.stderr)
+        sys.exit(1)
 
     allowed = load_words_from_file(words_path)
     if not allowed:
