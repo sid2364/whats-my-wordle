@@ -198,6 +198,13 @@ def plot_results(*, results: List[GameResult], max_turns: int, out_path: str) ->
         va="top",
     )
 
+    # also write each bar's count on top
+    for i, v in enumerate(ys):
+        if v > 0:
+            ax.text(i + 1, v + 0.5, str(v), ha="center", va="bottom")
+    if fail_y > 0:
+        ax.text(fail_x, fail_y + 0.5, str(fail_y), ha="center", va="bottom")
+
     ax.legend(loc="upper left")
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
