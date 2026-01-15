@@ -222,7 +222,12 @@ class WordleEntropySolver:
             buckets[self.feedback(secret, guess)] += 1
         return entropy_from_counts(buckets.values(), total=len(self.candidates))
 
-    def suggest(self, top_k: int = 10, guess_space: str = "allowed") -> List[Tuple[str, float]]:
+    def suggest(
+        self,
+        top_k: int = 10,
+        guess_space: str = "allowed",
+        show_progress: bool = True,
+    ) -> List[Tuple[str, float]]:
         """
         Return top_k guesses by entropy.
         guess_space: "allowed" or "candidates"
@@ -241,8 +246,8 @@ class WordleEntropySolver:
                 return cached[:top_k]
 
         scored: List[Tuple[str, float]] = []
-        # use tqdm for progress bar 
-        for g in tqdm.tqdm(pool, desc="Scoring guesses", unit="word"):
+        iterator = tqdm.tqdm(pool, desc="Scoring guesses", unit="word") if show_progress else pool
+        for g in iterator:
             h = self.score_guess_entropy(g)
             scored.append((g, h))
 
