@@ -60,7 +60,7 @@ At a high level, the solver treats Wordle as a search problem:
 - For any proposed guess `g`, Wordle returns a 5-slot feedback pattern telling you what you learned.
 - A good guess is one that, on average, splits the candidates into many similarly-sized groups.
 
-The solver measures “how well a guess splits the candidates” using Shannon entropy, measured in bits.
+The solver measures “how well a guess splits the candidates” using (Claude) Shannon entropy, measured in bits.
 
 ### 1) Feedback: how Wordle responds to a guess
 
@@ -198,3 +198,6 @@ The plot shows the distribution of the number of turns taken to solve the puzzle
 
 ### Word list source
 https://github.com/Kinkelin/WordleCompetition/tree/main/data/official
+
+### Original motivation
+3Blue1Brown video: https://www.youtube.com/watch?v=v68zYyaEmEA
