@@ -179,6 +179,7 @@ python3 wordle_tester.py --words official_allowed_guesses.txt --answers shuffled
 ```
 
 ## Output
+```
 Simulating: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 2315/2315 [01:11<00:00, 32.40game/s]
 Games: 2315
 Solved: 2303 (99.48%)
@@ -189,15 +190,15 @@ Turn distribution (solved): 1:1, 2:131, 3:999, 4:919, 5:205, 6:48
 Most common first guess: raise (2315 / 2315)
 Failed examples (up to 10): boxer, tacky, water, latch, waste, foyer, grade, watch, creak, tight
 Wrote plot: results.png
+```
 
 ## Plot
 The plot shows the distribution of the number of turns taken to solve the puzzles, with a bar for each turn count (1 to 6) and a separate bar for failures. The count of games for each bar is shown on top of the bar.
 
 ![results.png](results.png)
 
-
-### Word list source
+## Word list source
 https://github.com/Kinkelin/WordleCompetition/tree/main/data/official
 
-### Original motivation
+## Original motivation
 3Blue1Brown video: https://www.youtube.com/watch?v=v68zYyaEmEA
