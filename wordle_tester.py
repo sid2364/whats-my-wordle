@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""wordle_tester.py
+"""
+wordle_tester.py
 
 Runs automated simulations using the solver in wordle.py and prints summary statistics.
 Optionally writes a matplotlib graph to disk.
@@ -7,9 +8,8 @@ Optionally writes a matplotlib graph to disk.
 Examples:
   python3 wordle_tester.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --limit 200
   python3 wordle_tester.py --guess-space candidates --max-turns 6 --plot results.png
+  python3 wordle_tester.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --first-guess crane
 """
-
-from __future__ import annotations
 
 import argparse
 import statistics
@@ -19,13 +19,9 @@ from dataclasses import dataclass
 from typing import Iterable, List, Optional
 
 import wordle
+import tqdm
 
-try:
-    import tqdm  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover
-    tqdm = None  # type: ignore
-
-
+# def a dataclass to hold the result of a single game simulation
 @dataclass(frozen=True)
 class GameResult:
     secret: str
@@ -34,7 +30,7 @@ class GameResult:
     final_candidates: int
     first_guess: str
 
-
+# try to open a file, return its path if it exists, else None
 def _default_path_if_exists(path: str) -> Optional[str]:
     try:
         with open(path, "r", encoding="utf-8"):
@@ -42,57 +38,54 @@ def _default_path_if_exists(path: str) -> Optional[str]:
     except OSError:
         return None
 
-
-def _load_default_allowed() -> List[str]:
-    preferred = _default_path_if_exists("official_allowed_guesses.txt")
-    if preferred:
-        return wordle.load_words_from_file(preferred)
-
-    src = wordle.default_word_source()
-    if not src:
-        raise SystemExit("No default word list found. Provide --words.")
-    return wordle.load_words_from_file(src)
-
-
+# load the default answers list if it exists
 def _load_default_answers() -> Optional[List[str]]:
     preferred = _default_path_if_exists("shuffled_real_wordles.txt")
     if preferred:
         return wordle.load_words_from_file(preferred)
     return None
 
-
+# wrap an iterable with tqdm progress bar if enabled
 def _iter_progress(iterable, *, enabled: bool, desc: str, unit: str):
     if enabled and tqdm is not None:
         return tqdm.tqdm(iterable, desc=desc, unit=unit)
     return iterable
 
-
+# actually simulate a single game of Wordle
 def simulate_game(
-    *,
+    *, # to force keyword args after this point
     secret: str,
     allowed_guesses: List[str],
     possible_answers: Optional[List[str]],
     guess_space: str,
     max_turns: int,
+    first_guess: Optional[str] = None,
 ) -> GameResult:
     solver = wordle.WordleEntropySolver(allowed_guesses=allowed_guesses, possible_answers=possible_answers)
 
-    first_guess = ""
+    # if first_guess is forced, use it on the first turn
+    # first_guess_used = first_guess if first_guess is not None else None
+    first_guess_used = first_guess
+
+    # now simulate the game
     for turn in range(1, max_turns + 1):
-        suggestions = solver.suggest(top_k=1, guess_space=guess_space, show_progress=False)
+        # get the best guess suggestion
+        suggestions = solver.suggest(top_k=1, guess_space=guess_space, show_progress=False, force_first_guess=first_guess_used if turn == 1 else None)
         if not suggestions:
             return GameResult(
                 secret=secret,
                 solved=False,
                 turns=turn,
                 final_candidates=len(solver.candidates),
-                first_guess=first_guess,
+                first_guess=first_guess_used,
             )
 
+        # make the guess
         guess = suggestions[0][0]
         if turn == 1:
-            first_guess = guess
+            first_guess_used = guess
 
+        # get feedback pattern
         pattern = wordle.wordle_feedback(secret, guess)
         if pattern == (2, 2, 2, 2, 2):
             return GameResult(
@@ -100,9 +93,10 @@ def simulate_game(
                 solved=True,
                 turns=turn,
                 final_candidates=len(solver.candidates),
-                first_guess=first_guess,
+                first_guess=first_guess_used,
             )
 
+        # filter candidates based on feedback
         solver.filter_candidates(guess, pattern)
         if not solver.candidates:
             return GameResult(
@@ -110,7 +104,7 @@ def simulate_game(
                 solved=False,
                 turns=turn,
                 final_candidates=0,
-                first_guess=first_guess,
+                first_guess=first_guess_used,
             )
 
     return GameResult(
@@ -118,14 +112,14 @@ def simulate_game(
         solved=False,
         turns=max_turns,
         final_candidates=len(solver.candidates),
-        first_guess=first_guess,
+        first_guess=first_guess_used,
     )
 
 
 def summarize(results: Iterable[GameResult]) -> str:
     results = list(results)
     if not results:
-        return "No results."
+        return "No results." # :(
 
     solved = [r for r in results if r.solved]
     failed = [r for r in results if not r.solved]
@@ -133,6 +127,7 @@ def summarize(results: Iterable[GameResult]) -> str:
     dist = Counter(r.turns for r in solved)
     first_guess_counts = Counter(r.first_guess for r in results if r.first_guess)
 
+    # print stats
     lines: List[str] = []
     lines.append(f"Games: {len(results)}")
     lines.append(f"Solved: {len(solved)} ({len(solved) / len(results) * 100:.2f}%)")
@@ -156,7 +151,7 @@ def summarize(results: Iterable[GameResult]) -> str:
 
 
 def plot_results(*, results: List[GameResult], max_turns: int, out_path: str) -> None:
-    # Import matplotlib only if plotting is requested.
+    # Import matplotlib only if plotting is required
     import matplotlib
 
     matplotlib.use("Agg")
@@ -186,7 +181,7 @@ def plot_results(*, results: List[GameResult], max_turns: int, out_path: str) ->
 
     solved_pct = (len(solved) / total * 100.0) if total else 0.0
     ax.text(
-        0.99,
+        0.99, 
         0.95,
         f"Solved: {len(solved)}/{total} ({solved_pct:.1f}%)",
         transform=ax.transAxes,
@@ -222,11 +217,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument(
         "--guess-space",
         choices=["allowed", "candidates"],
-        default="candidates",
+        # default="allowed",
+        default="candidates", # much faster to score from candidates only, coz allowed list is huge
         help="Score guesses from all allowed words or only remaining candidates.",
     )
     ap.add_argument("--no-progress", action="store_true", help="Disable progress bars.")
     ap.add_argument("--plot", type=str, default=None, help="Write a matplotlib graph to this path (e.g. results.png).")
+    ap.add_argument("--first-guess", type=str, default=None, help="Force a specific first guess (bypass suggestion).")
     args = ap.parse_args(argv)
 
     if args.words:
@@ -251,6 +248,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     else:
         print("No secrets list available. Provide --answers or --secrets.", file=sys.stderr)
         return 2
+    
+    if args.first_guess is not None:
+        if args.first_guess not in allowed:
+            print(f"Forced first guess '{args.first_guess}' is not in the allowed guesses list.", file=sys.stderr)
+            return 2
+        if possible_answers is not None and args.first_guess not in possible_answers:
+            print(f"Warning: Forced first guess '{args.first_guess}' is not in the possible answers list.", file=sys.stderr)
 
     if args.limit and args.limit > 0:
         secrets = secrets[: args.limit]
@@ -259,6 +263,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     skipped = 0
     results: List[GameResult] = []
 
+    print("First guess set to:", args.first_guess if args.first_guess else "(solver choice)")
     for secret in _iter_progress(secrets, enabled=(not args.no_progress), desc="Simulating", unit="game"):
         if possible_set is not None and secret not in possible_set:
             skipped += 1
@@ -270,6 +275,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 possible_answers=possible_answers,
                 guess_space=args.guess_space,
                 max_turns=args.max_turns,
+                first_guess=args.first_guess,
             )
         )
 

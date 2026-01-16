@@ -48,8 +48,7 @@ Suggested guess: soare
 Enter the guess you used (or press Enter to use suggested): 
 ...
 ```
-After each iteration, the command line will tell you how many remaining words there could be, what the top guesses are and what their expected information gain bits are, to quantify how good a guess is.
-
+After each turn, the CLI shows how many candidate answers remain, the top suggested guesses, and each guess’s expected information gain (in bits), which quantifies how informative the guess is. The higher the bits, the better. But later turns often have lower bits since there are fewer candidates left, so if we have a value of 0, then we know we have found the answer.
 
 ## How does it work?
 

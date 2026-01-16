@@ -1981,6 +1981,7 @@ rower
 fiery
 crane
 porch
+slane
 acute
 flora
 clear
