@@ -243,6 +243,42 @@ Notes:
 - If guesses are being rejected, the local word list may include words NYT no longer accepts; the bot will automatically try the next suggestion.
 
 
+### Bot output example
+
+```
+$ python3 nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --first-guess salet --verbose
+[   0.00s] solver: loaded allowed=10658 answers=2316 guess_space=candidates
+[   0.00s] solver: forced first guess = salet
+[   0.47s] browser: launching chromium headless=False slowmo=0ms
+[   0.47s] browser: navigating to https://www.nytimes.com/games/wordle/index.html
+[  14.64s] browser: clicked Play
+[  14.68s] browser: detected Wordle DOM mode = react
+[  14.68s] browser: focused game (clicked page)
+[  14.68s] turn 1: candidates remaining = 2316
+[  14.69s] solver: top suggestions = salet
+[  15.55s] browser: typing guess 'salet' (row 1)
+[  21.60s] browser: guess 'salet' appears rejected (no evaluation within 6.0s)
+[  27.96s] browser: typing guess 'salet' (row 1)
+[  29.46s] browser: got evaluations for row 1: ['correct', 'present', 'absent', 'absent', 'absent']
+[  29.46s] turn 1: accepted guess 'salet'
+[  29.46s] turn 1: evaluations=['correct', 'present', 'absent', 'absent', 'absent'] pattern=(2, 1, 0, 0, 0)
+[  29.47s] solver: filtered candidates 2316 -> 32
+[  29.47s] turn 2: candidates remaining = 32
+[  29.48s] solver: top suggestions = scamp, spark, scrap, scram, sharp, smack, swamp, shark ...
+[  30.34s] browser: typing guess 'scamp' (row 2)
+[  31.89s] browser: got evaluations for row 2: ['correct', 'present', 'present', 'present', 'absent']
+[  31.89s] turn 2: accepted guess 'scamp'
+[  31.89s] turn 2: evaluations=['correct', 'present', 'present', 'present', 'absent'] pattern=(2, 1, 1, 1, 0)
+[  31.89s] solver: filtered candidates 32 -> 1
+[  31.89s] turn 3: candidates remaining = 1
+[  31.89s] solver: top suggestions = sumac
+[  32.77s] browser: typing guess 'sumac' (row 3)
+[  34.32s] browser: got evaluations for row 3: ['correct', 'correct', 'correct', 'correct', 'correct']
+[  34.32s] turn 3: accepted guess 'sumac'
+[  34.32s] turn 3: evaluations=['correct', 'correct', 'correct', 'correct', 'correct'] pattern=(2, 2, 2, 2, 2)
+Solved: sumac in 3 turns
+```
+
 ## Word list source
 https://github.com/Kinkelin/WordleCompetition/tree/main/data/official
 
