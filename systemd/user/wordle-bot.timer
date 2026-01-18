@@ -1,0 +1,11 @@
+[Unit]
+Description=Run NYT Wordle bot daily
+
+[Timer]
+# Daily at 09:05 local time (change to whatever you want)
+OnCalendar=*-*-* 09:05:00
+# If the laptop was off at 09:05, run once on next boot/login
+Persistent=true
+
+[Install]
+WantedBy=timers.target

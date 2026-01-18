@@ -1,0 +1,19 @@
+[Unit]
+Description=NYT Wordle Bot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Forge/whats-my-wordle
+Environment=PYTHONUNBUFFERED=1
+
+# Use the repo venv so Playwright is available.
+ExecStart=%h/Forge/whats-my-wordle/.venv/bin/python %h/Forge/whats-my-wordle/nyt_wordle_bot.py \
+  --headless \
+  --verbose \
+  --result-path %h/.cache/wordle-bot/last.json \
+  --notify
+
+# If you want to quickly view what happened:
+#   journalctl --user -u wordle-bot.service -n 200 --no-pager

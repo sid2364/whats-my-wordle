@@ -24,9 +24,13 @@ First run requires Playwright browser install:
 from __future__ import annotations
 
 import argparse
+import json
 import re
+import shutil
+import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Callable, List, Optional
 
 import wordle
@@ -44,6 +48,43 @@ except ModuleNotFoundError:  # pragma: no cover
 NYT_WORDLE_URL = "https://www.nytimes.com/games/wordle/index.html"
 
 LogFn = Callable[[str], None]
+
+
+def _expand_path(p: str) -> Path:
+    return Path(p).expanduser().resolve()
+
+
+def _write_json(path: Path, payload: dict, *, log: Optional[LogFn] = None) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(path)
+    if log is not None:
+        log(f"result: wrote {path}")
+
+
+def _try_notify_send(message: str, *, log: Optional[LogFn] = None, log_debug: Optional[LogFn] = None) -> None:
+    """Best-effort desktop notification via notify-send (Linux)."""
+
+    def _dbg(msg: str) -> None:
+        if log_debug is not None:
+            log_debug(msg)
+
+    if shutil.which("notify-send") is None:
+        _dbg("notify: notify-send not found; skipping")
+        return
+
+    try:
+        subprocess.run(
+            ["notify-send", "Wordle bot", message],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if log is not None:
+            log("notify: sent desktop notification")
+    except Exception as e:
+        _dbg(f"notify: failed: {e}")
 
 
 def _pattern_from_evals(evals: List[str]) -> wordle.Pattern:
@@ -372,6 +413,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--slowmo", type=int, default=0, help="Slow down actions (ms) for debugging.")
     ap.add_argument("--verbose", action="store_true", help="Print detailed progress to the console.")
     ap.add_argument("--debug", action="store_true", help="Very verbose logs (overlay clicks, browser console).")
+    ap.add_argument(
+        "--result-path",
+        type=str,
+        default=None,
+        help="Write the final result to this JSON file (e.g. ~/.cache/wordle-bot/last.json).",
+    )
+    ap.add_argument(
+        "--notify",
+        action="store_true",
+        help="Send a desktop notification with the answer (best-effort; requires notify-send).",
+    )
     ap.add_argument("--max-turns", type=int, default=6)
     ap.add_argument("--eval-timeout", type=float, default=6.0, help="Seconds to wait for tile evaluations per guess.")
     args = ap.parse_args(argv)
@@ -471,6 +523,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         first_guess_used: Optional[str] = args.first_guess
 
+        turns: List[dict] = []
+
         for turn in range(1, args.max_turns + 1):
             log(f"turn {turn}: candidates remaining = {len(solver.candidates)}")
             suggestions = solver.suggest(
@@ -528,8 +582,26 @@ def main(argv: Optional[List[str]] = None) -> int:
             log(f"turn {turn}: accepted guess '{guess_used}'")
             log(f"turn {turn}: evaluations={evaluations} pattern={pattern}")
 
+            turns.append({"turn": turn, "guess": guess_used, "evaluations": evaluations, "pattern": list(pattern)})
+
             if pattern == (2, 2, 2, 2, 2):
-                print(f"Solved: {guess_used} in {turn} turns")
+                msg = f"Solved: {guess_used} in {turn} turns"
+                print(msg)
+
+                if args.result_path:
+                    out_path = _expand_path(args.result_path)
+                    payload = {
+                        "date": time.strftime("%Y-%m-%d"),
+                        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                        "solved": True,
+                        "answer": guess_used,
+                        "turns": turn,
+                        "steps": turns,
+                    }
+                    _write_json(out_path, payload, log=log if verbose else None)
+
+                if args.notify:
+                    _try_notify_send(msg, log=log if verbose else None, log_debug=log_debug if debug else None)
                 return 0
 
             before = len(solver.candidates)
@@ -540,7 +612,24 @@ def main(argv: Optional[List[str]] = None) -> int:
                 print("No candidates remain after filtering; extraction may be wrong or word lists mismatch.")
                 return 6
 
-        print(f"Failed to solve within {args.max_turns} turns. Remaining candidates: {len(solver.candidates)}")
+        msg = f"Failed to solve within {args.max_turns} turns. Remaining candidates: {len(solver.candidates)}"
+        print(msg)
+
+        if args.result_path:
+            out_path = _expand_path(args.result_path)
+            payload = {
+                "date": time.strftime("%Y-%m-%d"),
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "solved": False,
+                "answer": None,
+                "turns": args.max_turns,
+                "remaining_candidates": len(solver.candidates),
+                "steps": turns,
+            }
+            _write_json(out_path, payload, log=log if verbose else None)
+
+        if args.notify:
+            _try_notify_send(msg, log=log if verbose else None, log_debug=log_debug if debug else None)
         return 7
 
 

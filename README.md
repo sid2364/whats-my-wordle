@@ -242,6 +242,73 @@ Notes:
 - NYT can change the Wordle page DOM; if that happens, the scraper in `nyt_wordle_bot.py` may need updates.
 - If guesses are being rejected, the local word list may include words NYT no longer accepts; the bot will automatically try the next suggestion.
 
+### Saving the result (for scheduling)
+
+You can make the bot write the daily result to a file (JSON), which is handy for systemd timers:
+
+```bash
+python3 nyt_wordle_bot.py --headless --result-path ~/.cache/wordle-bot/last.json
+```
+
+To print the last saved result later:
+
+```bash
+python3 wordle_last.py
+```
+
+### Run daily with a systemd user timer (Linux)
+
+This runs automatically whenever your laptop is on and your user systemd session is running.
+
+1) Copy the unit + timer into your user systemd directory:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp systemd/user/wordle-bot.service ~/.config/systemd/user/
+cp systemd/user/wordle-bot.timer ~/.config/systemd/user/
+```
+
+2) If your repo is NOT at `~/Forge/whats-my-wordle`, edit the path in the service file:
+
+```bash
+systemctl --user edit --full wordle-bot.service
+```
+
+3) Enable and start the timer:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now wordle-bot.timer
+systemctl --user list-timers --all | grep wordle
+```
+
+4) See logs and the last answer:
+
+```bash
+journalctl --user -u wordle-bot.service -n 200 --no-pager
+python3 wordle_last.py
+```
+
+#### Optional: show the answer when you open a terminal
+
+Add this to `~/.bashrc` (or `~/.zshrc`) to print the last saved result when you start a shell:
+
+```bash
+if [ -f "$HOME/.cache/wordle-bot/last.json" ]; then
+  $HOME/Forge/whats-my-wordle/.venv/bin/python "$HOME/Forge/whats-my-wordle/wordle_last.py" 2>/dev/null || true
+fi
+```
+
+#### Optional: run even when you are NOT logged in
+
+User timers normally run when you are logged in. If you want it to run after boot even when you haven't logged in yet:
+
+```bash
+loginctl enable-linger "$USER"
+```
+
+Note: desktop notifications (`--notify`) usually require an active graphical session.
+
 
 ### Bot output example
 
