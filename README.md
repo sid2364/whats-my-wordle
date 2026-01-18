@@ -21,6 +21,21 @@ Each turn, it prints the top suggestions, then asks for the feedback pattern:
 
 The first-turn scoring is cached on disk in .first_guess_entropy_cache.json next to wordle.py. This is to speed up repeated runs since the first turn is the slowest, and it's always the same.
 
+
+## Setup
+
+Install Python deps:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+or 
+
+```bash
+pip install -r requirements.txt
+```
+
 ### Command line interface
 ```
 === Wordle Entropy Solver ===
@@ -195,6 +210,38 @@ Wrote plot: results.png
 The plot shows the distribution of the number of turns taken to solve the puzzles, with a bar for each turn count (1 to 6) and a separate bar for failures. The count of games for each bar is shown on top of the bar.
 
 ![results.png](results.png)
+
+
+## NYT Wordle bot (Playwright)
+
+The bot `nyt_wordle_bot.py` uses Playwright to control a Chromium browser instance. It automatically inputs guesses and reads feedback from the page, allowing it to solve the puzzle without manual input. This is specifically designed for the New York Times Wordle web interface.
+
+### Setup
+
+Install the Playwright browser binary (one-time):
+
+```bash
+python3 -m playwright install chromium
+```
+
+### Run
+
+Non-headless (to can see what it’s doing):
+
+```bash
+python3 nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
+```
+
+Headless:
+
+```bash
+python3 nyt_wordle_bot.py --headless
+```
+
+Notes:
+- NYT can change the Wordle page DOM; if that happens, the scraper in `nyt_wordle_bot.py` may need updates.
+- If guesses are being rejected, the local word list may include words NYT no longer accepts; the bot will automatically try the next suggestion.
+
 
 ## Word list source
 https://github.com/Kinkelin/WordleCompetition/tree/main/data/official
