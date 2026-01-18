@@ -212,7 +212,7 @@ The plot shows the distribution of the number of turns taken to solve the puzzle
 ![results.png](results.png)
 
 
-## NYT Wordle bot (Playwright)
+# NYT Wordle bot
 
 The bot `src/bot/nyt_wordle_bot.py` uses Playwright to control a Chromium browser instance. It automatically inputs guesses and reads feedback from the page, allowing it to solve the puzzle without manual input. This is specifically designed for the New York Times Wordle web interface.
 
@@ -226,7 +226,7 @@ python3 -m playwright install chromium
 
 ### Run
 
-Non-headless (to can see what it’s doing):
+Non-headless (so that you can see what it’s doing):
 
 ```bash
 python3 src/bot/nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
@@ -258,7 +258,7 @@ python3 src/bot/wordle_last.py
 
 ### Run daily with a systemd user timer (Linux)
 
-This runs automatically whenever your laptop is on and your user systemd session is running.
+This runs automatically whenever your laptop is on, and your user systemd session is running.
 
 1) Copy the unit + timer into your user systemd directory:
 
@@ -289,7 +289,7 @@ journalctl --user -u wordle-bot.service -n 200 --no-pager
 python3 src/bot/wordle_last.py
 ```
 
-#### Optional: show the answer when you open a terminal
+#### Show the answer when you open a terminal
 
 Add this to `~/.bashrc` (or `~/.zshrc`) to print the last saved result when you start a shell:
 
@@ -298,15 +298,6 @@ if [ -f "$HOME/.cache/wordle-bot/last.json" ]; then
   $HOME/Forge/whats-my-wordle/.venv/bin/python "$HOME/Forge/whats-my-wordle/src/bot/wordle_last.py" 2>/dev/null || true
 fi
 ```
-
-#### Optional: run even when you are NOT logged in
-
-User timers normally run when you are logged in. If you want it to run after boot even when you haven't logged in yet:
-
-```bash
-loginctl enable-linger "$USER"
-```
-
 Note: desktop notifications (`--notify`) usually require an active graphical session.
 
 
