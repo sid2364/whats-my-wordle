@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """nyt_wordle_bot.py
 
-Automates NYT Wordle in a real browser and drives the solver from wordle.py.
+Automates NYT Wordle in a real browser and drives the solver from solver.wordle.
 
 What it does:
 - Opens https://www.nytimes.com/games/wordle/index.html
@@ -15,7 +15,7 @@ Notes:
 - NYT can change the DOM at any time; if selectors break, we update the JS in _read_row_evaluations().
 
 Usage:
-  python3 nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
+  python3 src/bot/nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
 
 First run requires Playwright browser install:
   python3 -m playwright install chromium
@@ -33,7 +33,13 @@ import time
 from pathlib import Path
 from typing import Callable, List, Optional
 
-import wordle
+# Make `src/` importable so we can `from solver import wordle` without installing.
+# When this script lives in src/bot/, we want to add the parent src/ directory.
+_SRC = Path(__file__).resolve().parents[1]
+if _SRC.exists():
+    sys.path.insert(0, str(_SRC))
+
+from solver import wordle
 
 try:
     from playwright.sync_api import Error as PlaywrightError

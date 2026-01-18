@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-wordle.py
+"""wordle.py
 
 A Wordle helper that suggests guesses by maximizing expected information gain (entropy).
 You play Wordle elsewhere; after each guess you type the feedback pattern here.
@@ -13,7 +12,7 @@ Word list:
 - Pass --words and optionally --answers to use custom word lists.
 
 Usage:
-  python3 wordle.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
+  python3 src/solver/wordle.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
 """
 
 import argparse
@@ -32,6 +31,7 @@ import tqdm
 
 Pattern = Tuple[int, int, int, int, int]  # each int in {0,1,2}
 
+
 # parse_pattern converts a string like 'bygyb' or '02120' into a Pattern tuple
 def parse_pattern(s: str) -> Pattern:
     s = s.strip().lower()
@@ -41,6 +41,7 @@ def parse_pattern(s: str) -> Pattern:
     if re.fullmatch(r"[012]{5}", s):
         return tuple(int(ch) for ch in s)  # type: ignore
     raise ValueError("Pattern must be 5 chars of [g,y,b] or [0,1,2]. Example: 'bygyb' or '02120'.")
+
 
 # load_words_from_file loads a list of 5-letter words from a file, one per line
 def load_words_from_file(path: str) -> List[str]:
@@ -58,6 +59,7 @@ def load_words_from_file(path: str) -> List[str]:
             seen.add(w)
             out.append(w)
     return out
+
 
 # compute Wordle-style feedback for guess given the secret word
 def wordle_feedback(secret: str, guess: str) -> Pattern:
@@ -82,10 +84,11 @@ def wordle_feedback(secret: str, guess: str) -> Pattern:
 
     return tuple(res)  # type: ignore
 
+
 # compute Shannon entropy from counts
 # how this works: https://en.wikipedia.org/wiki/Entropy_(information_theory)
 # H(X) = - sum(p(x) * log2(p(x))) over all x in X
-# here X is the set of possible feedback patterns for a guess 
+# here X is the set of possible feedback patterns for a guess
 # and the inputs are counts of how many secrets yield each pattern like "ggbby" or "ybbgb" or something
 # what we want is the expected information gain from making that guess
 def entropy_from_counts(counts: Iterable[int], total: int) -> float:
@@ -100,6 +103,7 @@ def entropy_from_counts(counts: Iterable[int], total: int) -> float:
     # h is now the entropy in bits based on the counts of each bucket
     # each bucket corresponds to a feedback pattern
     return h
+
 
 # solver class for Wordle using entropy maximization
 class WordleEntropySolver:
@@ -117,7 +121,7 @@ class WordleEntropySolver:
 
         # Store cache next to this script so it is shared across runs.
         script_dir = pathlib.Path(__file__).resolve().parent
-        self._first_guess_cache_path = script_dir / ".first_guess_entropy_cache.json" # TODO make file name a global constant
+        self._first_guess_cache_path = script_dir / ".first_guess_entropy_cache.json"  # TODO make file name a global constant
 
         # Cache: (guess, tuple(sorted(candidates))?) would be huge. So cache per (guess, secret) feedback
         # to speed repeated evaluations across iterations.
@@ -259,14 +263,14 @@ class WordleEntropySolver:
                 file=sys.stderr,
             )
             return []
-    
+
         # fast path: first turn scoring is deterministic for a given word list(s) + guess_space
         # this is in case no first guess is forced, so we can use the cached one
         if self._is_initial_state:
             cache_key = self._first_guess_cache_key(pool=pool, guess_space=guess_space)
             cached = self._load_first_guess_scoring(cache_key)
             if cached is not None:
-                return cached[:top_k] # "soare" is always best first guess for standard lists (?)
+                return cached[:top_k]  # "soare" is always best first guess for standard lists (?)
 
         # if we reach here, do need to build scoring from scratch
         scored: List[Tuple[str, float]] = []
@@ -288,15 +292,21 @@ class WordleEntropySolver:
 
 def cli():
     ap = argparse.ArgumentParser(description="Wordle entropy solver (interactive CLI).")
-    ap.add_argument("--words", type=str, default=None,
-                    help="Path to allowed guess words (5-letter). One per line.")
-    ap.add_argument("--answers", type=str, default=None,
-                    help="Path to possible answer words (5-letter). One per line. If omitted, uses --words list.")
+    ap.add_argument("--words", type=str, default=None, help="Path to allowed guess words (5-letter). One per line.")
+    ap.add_argument(
+        "--answers",
+        type=str,
+        default=None,
+        help="Path to possible answer words (5-letter). One per line. If omitted, uses --words list.",
+    )
     ap.add_argument("--top", type=int, default=10, help="How many suggestions to show each turn.")
-    ap.add_argument("--guess-space", choices=["allowed", "candidates"], default="allowed",
-                    help="Score guesses from all allowed words or only remaining candidates.")
-    ap.add_argument("--first-guess", type=str, default=None,
-                    help="Force a specific first guess (bypass suggestion).")
+    ap.add_argument(
+        "--guess-space",
+        choices=["allowed", "candidates"],
+        default="allowed",
+        help="Score guesses from all allowed words or only remaining candidates.",
+    )
+    ap.add_argument("--first-guess", type=str, default=None, help="Force a specific first guess (bypass suggestion).")
     args = ap.parse_args()
 
     words_path = args.words

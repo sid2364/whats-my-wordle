@@ -9,7 +9,7 @@ WorkingDirectory=%h/Forge/whats-my-wordle
 Environment=PYTHONUNBUFFERED=1
 
 # Use the repo venv so Playwright is available.
-ExecStart=%h/Forge/whats-my-wordle/.venv/bin/python %h/Forge/whats-my-wordle/nyt_wordle_bot.py \
+ExecStart=%h/Forge/whats-my-wordle/.venv/bin/python %h/Forge/whats-my-wordle/src/bot/nyt_wordle_bot.py \
   --headless \
   --verbose \
   --result-path %h/.cache/wordle-bot/last.json \

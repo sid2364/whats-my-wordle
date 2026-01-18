@@ -7,8 +7,8 @@ Default path:
   ~/.cache/wordle-bot/last.json
 
 Usage:
-  python3 wordle_last.py
-  python3 wordle_last.py --path ~/.cache/wordle-bot/last.json
+  python3 src/bot/wordle_last.py
+  python3 src/bot/wordle_last.py --path ~/.cache/wordle-bot/last.json
 """
 
 from __future__ import annotations
@@ -28,7 +28,12 @@ def _expand(p: str) -> Path:
 def _notify(message: str) -> None:
     if shutil.which("notify-send") is None:
         return
-    subprocess.run(["notify-send", "Wordle bot", message], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        ["notify-send", "Wordle bot", message],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

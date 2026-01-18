@@ -3,8 +3,8 @@
 Wordle solver using information theory (expected information gain/entropy).
 
 This repo contains:
-- wordle.py: interactive helper that suggests the next guess
-- wordle_tester.py: simulator that runs many games and prints aggregate statistics 
+- src/solver/wordle.py: interactive helper that suggests the next guess
+- src/solver/wordle_tester.py: simulator that runs many games and prints aggregate statistics 
 
 
 ## Interactive solver (wordle.py)
@@ -12,7 +12,7 @@ This repo contains:
 Run with:
 
 ```bash
-python3 wordle.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
+python3 src/solver/wordle.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
 ```
 
 Each turn, it prints the top suggestions, then asks for the feedback pattern:
@@ -93,7 +93,7 @@ Important detail: repeated letters.
 Wordle is not “set membership” — it is *counted* membership. For example, if the secret has one `a`,
 then only one `a` across your whole guess can be marked green/yellow; extra `a`s become gray.
 
-The implementation in [wordle.py](wordle.py) does a two-pass approach:
+The implementation in [src/solver/wordle.py](src/solver/wordle.py) does a two-pass approach:
 
 1. Mark greens first and decrement a letter counter for the secret.
 2. Then mark yellows only if that letter still has remaining count.
@@ -175,7 +175,7 @@ This repo uses two practical optimizations:
 
 ### 8) How the tester uses the solver
 
-[wordle_tester.py](wordle_tester.py) runs the same loop automatically for many secrets:
+[src/solver/wordle_tester.py](src/solver/wordle_tester.py) runs the same loop automatically for many secrets:
 
 - Choose a secret from the answers list.
 - Ask the solver for its best guess.
@@ -189,7 +189,7 @@ It then aggregates results (success rate, average turns, distribution) and can o
 
 To run:
 ```bash
-python3 wordle_tester.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --guess-space candidates --plot results.png
+python3 src/solver/wordle_tester.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --guess-space candidates --plot results.png
 ```
 
 ## Output
@@ -214,7 +214,7 @@ The plot shows the distribution of the number of turns taken to solve the puzzle
 
 ## NYT Wordle bot (Playwright)
 
-The bot `nyt_wordle_bot.py` uses Playwright to control a Chromium browser instance. It automatically inputs guesses and reads feedback from the page, allowing it to solve the puzzle without manual input. This is specifically designed for the New York Times Wordle web interface.
+The bot `src/bot/nyt_wordle_bot.py` uses Playwright to control a Chromium browser instance. It automatically inputs guesses and reads feedback from the page, allowing it to solve the puzzle without manual input. This is specifically designed for the New York Times Wordle web interface.
 
 ### Setup
 
@@ -229,17 +229,17 @@ python3 -m playwright install chromium
 Non-headless (to can see what it’s doing):
 
 ```bash
-python3 nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
+python3 src/bot/nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
 ```
 
 Headless:
 
 ```bash
-python3 nyt_wordle_bot.py --headless
+python3 src/bot/nyt_wordle_bot.py --headless
 ```
 
 Notes:
-- NYT can change the Wordle page DOM; if that happens, the scraper in `nyt_wordle_bot.py` may need updates.
+- NYT can change the Wordle page DOM; if that happens, the scraper in `src/bot/nyt_wordle_bot.py` may need updates.
 - If guesses are being rejected, the local word list may include words NYT no longer accepts; the bot will automatically try the next suggestion.
 
 ### Saving the result (for scheduling)
@@ -247,13 +247,13 @@ Notes:
 You can make the bot write the daily result to a file (JSON), which is handy for systemd timers:
 
 ```bash
-python3 nyt_wordle_bot.py --headless --result-path ~/.cache/wordle-bot/last.json
+python3 src/bot/nyt_wordle_bot.py --headless --result-path ~/.cache/wordle-bot/last.json
 ```
 
 To print the last saved result later:
 
 ```bash
-python3 wordle_last.py
+python3 src/bot/wordle_last.py
 ```
 
 ### Run daily with a systemd user timer (Linux)
@@ -286,7 +286,7 @@ systemctl --user list-timers --all | grep wordle
 
 ```bash
 journalctl --user -u wordle-bot.service -n 200 --no-pager
-python3 wordle_last.py
+python3 src/bot/wordle_last.py
 ```
 
 #### Optional: show the answer when you open a terminal
@@ -295,7 +295,7 @@ Add this to `~/.bashrc` (or `~/.zshrc`) to print the last saved result when you 
 
 ```bash
 if [ -f "$HOME/.cache/wordle-bot/last.json" ]; then
-  $HOME/Forge/whats-my-wordle/.venv/bin/python "$HOME/Forge/whats-my-wordle/wordle_last.py" 2>/dev/null || true
+  $HOME/Forge/whats-my-wordle/.venv/bin/python "$HOME/Forge/whats-my-wordle/src/bot/wordle_last.py" 2>/dev/null || true
 fi
 ```
 
@@ -313,7 +313,7 @@ Note: desktop notifications (`--notify`) usually require an active graphical ses
 ### Bot output example
 
 ```
-$ python3 nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --first-guess salet --verbose
+$ python3 src/bot/nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --first-guess salet --verbose
 [   0.00s] solver: loaded allowed=10658 answers=2316 guess_space=candidates
 [   0.00s] solver: forced first guess = salet
 [   0.47s] browser: launching chromium headless=False slowmo=0ms
