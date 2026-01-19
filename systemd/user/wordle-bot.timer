@@ -2,9 +2,10 @@
 Description=Run NYT Wordle bot daily
 
 [Timer]
-# Daily at 09:05 local time (change to whatever you want)
-OnCalendar=*-*-* 09:05:00
-# If the laptop was off at 09:05, run once on next boot/login
+# Daily at 11:05 local time
+OnCalendar=*-*-* 11:05:00
+# If the timer was missed (machine asleep/off), run once when your user systemd
+# instance is running again.
 Persistent=true
 
 [Install]

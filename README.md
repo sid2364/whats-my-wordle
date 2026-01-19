@@ -260,6 +260,11 @@ python3 src/bot/wordle_last.py
 
 This runs automatically whenever your laptop is on, and your user systemd session is running.
 
+Important behavior:
+- If your laptop is fully powered off at the scheduled time, nothing can run. With `Persistent=true`, the job runs once the next time your user systemd session is active again.
+- If your laptop is sleeping/suspended, the job won’t run during sleep; it should run soon after you resume (again thanks to `Persistent=true`).
+- If you want it to run even when you are not logged in, enable lingering (below).
+
 1) Copy the unit + timer into your user systemd directory:
 
 ```bash
@@ -299,6 +304,14 @@ if [ -f "$HOME/.cache/wordle-bot/last.json" ]; then
 fi
 ```
 Note: desktop notifications (`--notify`) usually require an active graphical session.
+
+#### Optional: run even when you are NOT logged in
+
+User timers normally run only when your user systemd session is active (typically when you’re logged in). If you want it to run after boot even before you log in:
+
+```bash
+loginctl enable-linger "$USER"
+```
 
 
 ### Bot output example
