@@ -5,9 +5,30 @@ Wordle solver using information theory (expected information gain/entropy).
 This repo contains:
 - src/solver/wordle.py: interactive helper that suggests the next guess
 - src/solver/wordle_tester.py: simulator that runs many games and prints aggregate statistics 
+- src/bot/nyt_wordle_bot.py: automated bot that plays Wordle on the New York Times website using Playwright
+- src/bot/wordle_last.py: utility to print the last saved result from the bot (for use in shell prompts, notifications, etc.)
 
 
-## Interactive solver (wordle.py)
+## Setup
+
+Install Python deps:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+or 
+
+```bash
+pip install -r requirements.txt
+```
+
+For the bot, install the Playwright browser binary (one-time). Not needed for the solver or tester!
+
+```bash
+python3 -m playwright install chromium
+```
+
+## Usage: Interactive solver (src/solver/wordle.py)
 
 Run with:
 
@@ -21,20 +42,6 @@ Each turn, it prints the top suggestions, then asks for the feedback pattern:
 
 The first-turn scoring is cached on disk in .first_guess_entropy_cache.json next to wordle.py. This is to speed up repeated runs since the first turn is the slowest, and it's always the same.
 
-
-## Setup
-
-Install Python deps:
-
-```bash
-python3 -m pip install -r requirements.txt
-```
-
-or 
-
-```bash
-pip install -r requirements.txt
-```
 
 ### Command line interface
 ```
@@ -67,125 +74,73 @@ After each turn, the CLI shows how many candidate answers remain, the top sugges
 
 ## How does it work?
 
-At a high level, the solver treats Wordle as a search problem:
+The solver treats Wordle like a search problem: there’s an unknown secret word `s`, and we maintain a set of remaining possible secrets (the “candidates”). When you play a guess `g`, Wordle returns a 5-slot feedback pattern. A “good” guess is one that, on average, splits the candidates into lots of smaller groups so the next step is easier.
 
-- There is an unknown secret word `s`.
-- We keep a set of remaining possible secrets (the “candidates”).
-- For any proposed guess `g`, Wordle returns a 5-slot feedback pattern telling you what you learned.
-- A good guess is one that, on average, splits the candidates into many similarly-sized groups.
+Feedback is represented as five integers (one per position): `2` = green (right letter, right spot), `1` = yellow (right letter, wrong spot), `0` = gray (letter not present, or present but you guessed it too many times). There are $3^5 = 243$ possible patterns. Repeated letters matter: Wordle is *counted* membership, not set membership. The implementation in [src/solver/wordle.py](src/solver/wordle.py) matches the official behavior by doing two passes: first mark greens and decrement a per-letter counter from the secret, then mark yellows only if that letter still has remaining count.
 
-The solver measures “how well a guess splits the candidates” using (Claude) Shannon entropy, measured in bits.
-
-### 1) Feedback: how Wordle responds to a guess
-
-For a given secret `s` and guess `g`, Wordle returns a 5-character pattern.
-
-In this project we represent it as 5 integers, one per position:
-
-- `2` = green: same letter in the same position
-- `1` = yellow: letter exists in the word, but in a different position
-- `0` = gray: letter does not appear (or you used it too many times)
-
-There are $3^5 = 243$ possible patterns.
-
-Important detail: repeated letters.
-
-Wordle is not “set membership” — it is *counted* membership. For example, if the secret has one `a`,
-then only one `a` across your whole guess can be marked green/yellow; extra `a`s become gray.
-
-The implementation in [src/solver/wordle.py](src/solver/wordle.py) does a two-pass approach:
-
-1. Mark greens first and decrement a letter counter for the secret.
-2. Then mark yellows only if that letter still has remaining count.
-
-This matches the official game behavior.
-
-### 2) Scoring a guess: build a feedback distribution
-
-Suppose there are $N$ candidates remaining. The solver assumes (by default) that each candidate secret is
-equally likely.
-
-For a particular guess `g`, we compute the feedback it would produce against every remaining candidate secret:
-
-- For each secret `s` in `candidates`, compute `pattern = feedback(s, g)`.
-- Put that secret into a “bucket” for that pattern.
-
-This produces a distribution of pattern counts:
-
-- Let $c_p$ be the number of candidate secrets that produce pattern $p$ for guess `g`.
-- Then $\sum_p c_p = N$.
-- The probability of seeing pattern $p$ is $P(p) = c_p / N$.
-
-### 3) Entropy: expected information gain (in bits)
-
-Given those pattern probabilities, the solver computes Shannon entropy:
+To score a guess, assume the secret is uniformly distributed over the current candidates (so each remaining word is equally likely). For a given guess `g`, we simulate `pattern = feedback(s, g)` for every candidate secret `s` and bucket secrets by their resulting pattern. If $N$ candidates remain and $c_p$ of them produce pattern $p$, then $\sum_p c_p = N$ and the probability of observing $p$ is $P(p) = c_p / N$. The guess’s “expected bits” is the Shannon entropy of this pattern distribution:
 
 $$
 H(g) = -\sum_p P(p)\,\log_2 P(p)
 $$
 
-Intuition:
+Intuitively, higher entropy means you expect more information: the guess tends to spread candidates across many patterns instead of collapsing into one common outcome.
 
-- If a guess produces *almost always the same pattern*, then $H(g)$ is small — the guess doesn’t tell you much.
-- If a guess spreads candidates across many patterns with similar probabilities, $H(g)$ is larger — you expect to learn more.
+Each turn, the solver evaluates guesses from a pool and picks the one with the highest entropy. The pool is controlled by `--guess-space`: `candidates` only scores words that could still be the secret, while `allowed` also considers “probe” guesses that aren’t valid secrets but can be more informative. After you type the real pattern you got from Wordle, the solver updates the state by filtering candidates to exactly those secrets `s` where `feedback(s, guess) == observed_pattern`, then repeats the loop.
 
-The solver prints this value as “expected bits”.
+Performance-wise, scoring is roughly $O(|pool| \cdot |candidates|)$ feedback computations per turn. This repo speeds things up with in-memory memoization of `feedback(secret, guess)` and by caching the full first-turn entropy table to `.first_guess_entropy_cache.json` (turn 1 is always the same candidate set). The tester in [src/solver/wordle_tester.py](src/solver/wordle_tester.py) runs the same loop automatically across many secrets and aggregates stats.
 
-### 4) Picking the next guess
+### Example entropy iteration
 
-For each turn the solver evaluates each possible guess in a “guess pool” and picks the one with the highest entropy.
+Pretend we’re mid-game and we’ve already narrowed things down to just 4 possible answers:
 
-The guess pool is controlled by `--guess-space`:
+```
+candidates = {cigar, rebut, sissy, humph}
+N = 4
+```
 
-- `candidates`: only score words that are still possible secrets (often a good default for playing).
-- `allowed`: score all allowed guesses, even if they can’t be the secret (can give better “probe” guesses).
+Now we’re considering a guess `g`. We don’t know the secret, so we “try” `g` against each candidate, record the resulting feedback pattern, and count how often each pattern happens.
 
-### 5) Updating candidates after you type feedback
+Say `g` produces these buckets:
 
-Once you enter the actual feedback you got from Wordle for the guess you played, the solver filters candidates:
+```
+pattern A: 2 candidates
+pattern B: 1 candidate
+pattern C: 1 candidate
+```
 
-- Keep only the words `s` where `feedback(s, guess) == observed_pattern`.
+A pattern here is just a specific 5-slot feedback like `gybby`. A word resulting in different patterns goes into different buckets - we know the patterns possible because we know the candidates!
 
-This is the core “search loop”: score → guess → observe pattern → filter → repeat.
+Here, that means the probabilities are $P(A)=2/4=0.5$, $P(B)=1/4=0.25$, $P(C)=1/4=0.25$. The entropy is:
 
-### 6) Why entropy is a good objective
+$$
+H(g) = -(0.5\log_2 0.5 + 0.25\log_2 0.25 + 0.25\log_2 0.25)
+  = -(0.5\cdot(-1) + 0.25\cdot(-2) + 0.25\cdot(-2))
+  = 1.5\ \text{bits}
+$$
 
-Entropy is a principled way to measure how much uncertainty you expect to remove.
+Translation: on average, this guess is worth about 1.5 bits of “narrowing-down power”. Often you’ll cut the candidate set roughly in half (or better), because different feedback patterns point to different subsets. 1 bit of information halves the search space, 2 bits quarters it, etc. So 1.5 bits is pretty good coz it means you’re doing better than halving each turn. Initially, with 2300 candidates, the entropy of a good guess is around 5-6 bits, which cuts the candidates down to about 50-100 after the first turn (statistically!), and after the second turn you’re often down to just a few dozen considering an information gain of 3-4 bits. This game works so well because the branching factor is high: there are 243 possible feedback patterns, so good guesses can split candidates into many small groups. And you cannot get “stuck” in a bad state because every guess gives some information (no zero-entropy guesses). Initially you need around 11-12 bits to uniquely identify one word out of 2315 (which isn't possible with 5 letter guesses), so with good guesses you can expect to solve most puzzles in about 4-5 turns.
 
-Because we treat the secret as uniformly distributed over the remaining candidates, $H(g)$ is exactly the
-expected number of bits of information you gain from playing guess `g` and seeing the resulting pattern.
+So now, compare our guess with a more "meh" guess `g2` that buckets like this:
 
-In practice, maximizing entropy tends to:
+```
+pattern X: 3 candidates
+pattern Y: 1 candidate
+```
 
-- Avoid guesses that don’t discriminate between candidates.
-- Prefer guesses that split the candidate set into many smaller groups.
+Here $P(X)=0.75$ and $P(Y)=0.25$, so $H(g2) \approx 0.811$ bits. That’s lower because most of the time you get the same pattern (X), which doesn’t narrow things down much.
 
-### 7) Performance and caching
+After you actually play the guess and Wordle shows you a concrete pattern (say you got pattern B), the solver just filters:
 
-A straightforward entropy calculation is expensive:
+```
+candidates := {s in candidates | feedback(s, g) == pattern_B}
+```
 
-- For each guess in the pool, we compare it against every remaining candidate.
-- That’s roughly $O(|pool| \cdot |candidates|)$ feedback computations per turn.
+...and repeats with the smaller set.
 
-This repo uses two practical optimizations:
+Ultimately, the goal is to maximize information gain each turn, so you reach a single candidate (the secret) as quickly as possible. 
 
-1. Feedback memoization: `feedback(secret, guess)` results are cached in-memory for reuse.
-2. First-turn entropy cache: the first turn always starts from the same full candidate set, so the complete
-   sorted entropy table is saved to `.first_guess_entropy_cache.json` and loaded on subsequent runs.
-
-### 8) How the tester uses the solver
-
-[src/solver/wordle_tester.py](src/solver/wordle_tester.py) runs the same loop automatically for many secrets:
-
-- Choose a secret from the answers list.
-- Ask the solver for its best guess.
-- Compute the pattern with the same `wordle_feedback()` logic.
-- Filter candidates.
-- Repeat until solved or `--max-turns` is reached.
-
-It then aggregates results (success rate, average turns, distribution) and can optionally save a matplotlib plot.
-
-## Simulator/stats (wordle_tester.py)
+## Usage: Simulator/stats (src/solver/wordle_tester.py)
 
 To run:
 ```bash
@@ -212,7 +167,7 @@ The plot shows the distribution of the number of turns taken to solve the puzzle
 ![results.png](results.png)
 
 
-## NYT Wordle bot
+## NYT Wordle Bot
 
 The bot `src/bot/nyt_wordle_bot.py` uses Playwright to control a Chromium browser instance. It automatically inputs guesses and reads feedback from the page, allowing it to solve the puzzle without manual input. This is specifically designed for the New York Times Wordle web interface.
 
@@ -224,7 +179,7 @@ Install the Playwright browser binary (one-time):
 python3 -m playwright install chromium
 ```
 
-### Run
+### Usage (src/bot/nyt_wordle_bot.py)
 
 Non-headless (so that you can see what it’s doing):
 
@@ -304,15 +259,6 @@ if [ -f "$HOME/.cache/wordle-bot/last.json" ]; then
 fi
 ```
 Note: desktop notifications (`--notify`) usually require an active graphical session.
-
-#### Optional: run even when you are NOT logged in
-
-User timers normally run only when your user systemd session is active (typically when you’re logged in). If you want it to run after boot even before you log in:
-
-```bash
-loginctl enable-linger "$USER"
-```
-
 
 ### Bot output example
 
