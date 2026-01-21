@@ -20,6 +20,7 @@ ExecStart=%h/Forge/whats-my-wordle/.venv/bin/python %h/Forge/whats-my-wordle/src
   --headless \
   --verbose \
   --result-path %h/.cache/wordle-bot/last.json \
+  --first-guess salet
   --notify
 
 # If you want to quickly view what happened:

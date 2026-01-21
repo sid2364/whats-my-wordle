@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """wordle_tester.py
 
-Runs automated simulations using the solver in wordle.py and prints summary statistics.
-Optionally writes a matplotlib graph to disk.
+Runs automated simulations using the solver in wordle.py and prints summary statistics
 
 Examples:
   python3 src/solver/wordle_tester.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt --limit 200
@@ -12,8 +11,8 @@ Examples:
 
 from __future__ import annotations
 
-# Allow running as a script: python3 src/solver/wordle_tester.py
-# (so that `import solver.wordle` works without installing as a package)
+# allow running as a script: python3 src/solver/wordle_tester.py
+# so that `import solver.wordle` works without installing as a package
 if __package__ is None and __name__ == "__main__":
     import sys
     from pathlib import Path
@@ -134,7 +133,7 @@ def simulate_game(
         first_guess=first_guess_used,
     )
 
-
+# summarize a list of GameResult into a string report
 def summarize(results: Iterable[GameResult]) -> str:
     results = list(results)
     if not results:
@@ -170,7 +169,7 @@ def summarize(results: Iterable[GameResult]) -> str:
 
 
 def plot_results(*, results: List[GameResult], max_turns: int, out_path: str) -> None:
-    # Import matplotlib only if plotting is required
+    # import matplotlib, only if plotting is required
     import matplotlib
 
     matplotlib.use("Agg")

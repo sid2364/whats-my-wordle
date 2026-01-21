@@ -329,7 +329,7 @@ def cli():
 
     solver = WordleEntropySolver(allowed_guesses=allowed, possible_answers=answers)
 
-    print("\n=== Wordle Entropy Solver ===")
+    print("=== Wordle Entropy Solver ===")
     print(f"Allowed guesses: {len(solver.allowed_guesses)}")
     print(f"Possible answers: {len(solver.possible_answers)}")
     print("Feedback input: 5 letters [g,y,b] or digits [2,1,0]. Example: bygyb or 02120")

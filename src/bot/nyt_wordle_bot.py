@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """nyt_wordle_bot.py
 
-Automates NYT Wordle in a real browser and drives the solver from solver.wordle.
+Automates NYT Wordle in a real browser and drives the solver from solver.wordle
 
 What it does:
 - Opens https://www.nytimes.com/games/wordle/index.html
@@ -12,12 +12,12 @@ What it does:
 
 Notes:
 - This relies on Wordle using open shadow DOM for its board components.
-- NYT can change the DOM at any time; if selectors break, we update the JS in _read_row_evaluations().
+- NYT can change the DOM at any time, if selectors break, we update the JS in _read_row_evaluations().
 
 Usage:
   python3 src/bot/nyt_wordle_bot.py --words official_allowed_guesses.txt --answers shuffled_real_wordles.txt
 
-First run requires Playwright browser install:
+First run requires Playwright browser install!
   python3 -m playwright install chromium
 """
 
@@ -35,6 +35,7 @@ from typing import Callable, List, Optional
 
 # Make `src/` importable so we can `from solver import wordle` without installing.
 # When this script lives in src/bot/, we want to add the parent src/ directory.
+# https://stackoverflow.com/questions/30218802/get-parent-of-current-directory-from-python-script
 _SRC = Path(__file__).resolve().parents[1]
 if _SRC.exists():
     sys.path.insert(0, str(_SRC))
@@ -53,13 +54,14 @@ except ModuleNotFoundError:  # pragma: no cover
 
 NYT_WORDLE_URL = "https://www.nytimes.com/games/wordle/index.html"
 
+# tpye for logging function
 LogFn = Callable[[str], None]
 
-
+# helpers
 def _expand_path(p: str) -> Path:
     return Path(p).expanduser().resolve()
 
-
+# write JSON to path atomically
 def _write_json(path: Path, payload: dict, *, log: Optional[LogFn] = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
@@ -68,9 +70,10 @@ def _write_json(path: Path, payload: dict, *, log: Optional[LogFn] = None) -> No
     if log is not None:
         log(f"result: wrote {path}")
 
-
+# desktop notification via notify-send on Linux
+# https://askubuntu.com/questions/108764/how-do-i-send-text-messages-to-the-notification-bubbles
 def _try_notify_send(message: str, *, log: Optional[LogFn] = None, log_debug: Optional[LogFn] = None) -> None:
-    """Best-effort desktop notification via notify-send (Linux)."""
+    """Best-effort desktop notification via notify-send (Linux)"""
 
     def _dbg(msg: str) -> None:
         if log_debug is not None:
@@ -92,7 +95,8 @@ def _try_notify_send(message: str, *, log: Optional[LogFn] = None, log_debug: Op
     except Exception as e:
         _dbg(f"notify: failed: {e}")
 
-
+# the Wordle website stores evaluations in this way (c, p, a) or (correct, present, absent)
+# we need to map tihs to our internal representation (2, 1, 0)
 def _pattern_from_evals(evals: List[str]) -> wordle.Pattern:
     # Map Wordle eval strings -> our ints
     m = {
@@ -107,21 +111,22 @@ def _pattern_from_evals(evals: List[str]) -> wordle.Pattern:
     except KeyError as e:
         raise ValueError(f"Unknown evaluation value: {e!r} in {evals}")
 
-
+# lots of overlays we don't care about
+# so find a way to dismiss them
 def _dismiss_overlays(
     page,
     *,
     log_debug: Optional[LogFn] = None,
     aggressive: bool = False,
 ) -> None:
-    # Wordle overlays differ by geography/time; keep this best-effort and non-fatal.
-    # Consent banners are sometimes inside iframes.
+    # Wordle overlays differ by geography/time, keep this best-effort and non-fatal...
+    # consent banners are sometimes inside iframes
 
     def _dbg(msg: str) -> None:
         if log_debug is not None:
             log_debug(msg)
 
-    # Keep click timeouts tiny; this runs a lot.
+    # Keep click timeouts tiny, this runs a lot!
     click_timeout_ms = 900 if aggressive else 120
 
     def _click_first(locator, *, what: str, timeout_ms: Optional[int] = None) -> bool:
@@ -133,8 +138,8 @@ def _dismiss_overlays(
             return False
 
     def _any_overlay_likely_visible() -> bool:
-        """Cheap check to avoid spending time scanning frames when nothing is up."""
-        # These checks run with very short timeouts.
+        # cheap check to avoid spending time scanning frames when nothing is up
+        # these checks run with very short timeouts
         try:
             if page.locator("text=/manage privacy preferences/i").first.is_visible(timeout=80):
                 return True
@@ -148,14 +153,14 @@ def _dismiss_overlays(
             except PlaywrightError:
                 pass
 
-        # If we can't tell, don't assume overlay is visible.
+        # if we can't tell, don't assume overlay is visible and move on?
         return False
 
-    # If we're not being aggressive and nothing obvious is visible, bail quickly.
+    # if we're not being aggressive and nothing obvious is visible, bail quickly.
     if not aggressive and not _any_overlay_likely_visible():
         return
 
-    # 1) Escape tends to close the "How To Play" modal.
+    # first escape tends to close the "How To Play" modal
     for _ in range(2 if not aggressive else 6):
         try:
             page.keyboard.press("Escape")
@@ -163,9 +168,9 @@ def _dismiss_overlays(
         except PlaywrightError:
             pass
 
-    # 2) Cookie consent: keep it simple.
-    # User asked to "just accept all cookies", so do ONLY that (plus close buttons).
-    # We intentionally avoid clicking "Manage preferences" or "Reject" flows.
+    # cookie consent: keep it simple
+    # just accept all cookies, plus close buttons
+    # intentionally avoid clicking "Manage preferences" or "Reject" flows
     consent_button_patterns = [
         r"accept\s+all(\s+cookies)?",
         r"accept\s+all",
@@ -173,7 +178,7 @@ def _dismiss_overlays(
         r"agree",
     ]
 
-    # Targets: always main page; if aggressive, also relevant iframes.
+    # targets: always main page; if aggressive, also relevant iframes.
     targets = [page]
     if aggressive:
         try:
@@ -201,7 +206,7 @@ def _dismiss_overlays(
                 targets.append(fr)
 
     for t in targets:
-        # For debugging, identify which frame we are targeting.
+        # for debugging, identify which frame we are targeting.
         try:
             frame_url = getattr(t, "url", "")
         except Exception:
@@ -209,7 +214,7 @@ def _dismiss_overlays(
         if frame_url:
             _dbg(f"overlay: scanning frame {frame_url}")
 
-        # Close buttons (often the X in the "How To Play" modal)
+        # close buttons (often the X in the "How To Play" modal)
         try:
             _click_first(
                 t.locator("button[aria-label='Close'], button[aria-label*='close' i]"),
@@ -218,16 +223,16 @@ def _dismiss_overlays(
         except PlaywrightError:
             pass
 
-        # Role-based cookie acceptance
+        # role-based cookie acceptance
         for pat in consent_button_patterns:
             try:
                 if _click_first(t.get_by_role("button", name=re.compile(pat, re.I)), what=f"button /{pat}/i"):
-                    # If we accepted, no need to try other patterns in this target.
+                    # if we accepted, no need to try other patterns in this target.
                     break
             except PlaywrightError:
                 pass
 
-    # 3) Some consent UIs are div-based; last resort: click visible text "Accept all".
+    # next, some consent UIs are div-based, last resort: click visible text "Accept all"
     for text_pat in [r"accept\s+all(\s+cookies)?", r"accept\s+all"]:
         try:
             _click_first(page.locator(f"text=/{text_pat}/i"), what=f"text=/{text_pat}/i")
@@ -238,12 +243,13 @@ def _dismiss_overlays(
 def _read_row_evaluations(page, row_index: int) -> Optional[List[str]]:
     """Return ['correct'|'present'|'absent']*5 for row_index, or None if not ready."""
 
+    # thank you ChatGPT :)
     js = r"""
 (rowIndex) => {
     const normalize = (v) => {
         const s = String(v || '').toLowerCase();
         if (s === 'correct' || s === 'present' || s === 'absent') return s;
-        // While animating or before submitting, tiles are often empty/tbd.
+        // while animating or before submitting, tiles are often empty/tbd.
         return null;
     };
 
@@ -309,14 +315,14 @@ def _wait_for_row_evaluations(page, row_index: int, timeout_s: float) -> List[st
         if evs is not None:
             return evs
         last = evs
-        # Throttle debug output (if enabled by caller via Playwright slowmo).
+        # Throttle debug output (if enabled by caller via Playwright slowmo)
         now = time.time()
         if now - last_debug_t >= 1.0:
             last_debug_t = now
         time.sleep(0.05)
     raise TimeoutError(f"Timed out waiting for evaluations for row {row_index}. Last={last}")
 
-
+# try submitting a guess and reading evaluations
 def _try_submit_guess(
     page,
     guess: str,
@@ -488,7 +494,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         page = context.new_page()
 
         if debug:
-            # Pipe browser console + page errors into Python stdout.
+            # Pipe browser console + page errors into Python stdout
             page.on("console", lambda m: log_debug(f"console.{m.type}: {m.text}"))
             page.on("pageerror", lambda e: log_debug(f"pageerror: {e}"))
             page.on("requestfailed", lambda r: log_debug(f"requestfailed: {r.url} {r.failure}"))
@@ -498,17 +504,17 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         page.goto(NYT_WORDLE_URL, wait_until="domcontentloaded")
         page.wait_for_timeout(800)
-        # Do an aggressive overlay sweep once at startup.
+        # Do an aggressive overlay sweep once at startup
         _dismiss_overlays(page, log_debug=log_debug if debug else None, aggressive=True)
 
-        # Some regions show a landing screen that requires pressing "Play" before the game loads.
+        # Some regions show a landing screen that requires pressing "Play" before the game loads
         _click_play_if_present(page, log=log if verbose else None, log_debug=log_debug if debug else None)
 
-        # Ensure the game is present (board UI ready).
+        # Ensure the game is present (board UI ready)
         try:
             page.wait_for_selector("#wordle-app-game, game-app, wordle-app-game", timeout=15000)
         except PlaywrightTimeoutError:
-            # One more attempt: overlays/cookies can block the Play click.
+            # One more attempt: overlays/cookies can block the Play click
             _dismiss_overlays(page, log_debug=log_debug if debug else None, aggressive=True)
             _click_play_if_present(page, log=log if verbose else None, log_debug=log_debug if debug else None)
             try:
@@ -520,7 +526,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         mode = _detect_dom_mode(page)
         log(f"browser: detected Wordle DOM mode = {mode}")
 
-        # Click into the page so keystrokes go to the game.
+        # Click into the page so keystrokes go to the game
         try:
             page.mouse.click(50, 50)
             log("browser: focused game (clicked page)")
@@ -547,11 +553,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                 preview = ", ".join(w for (w, _h) in suggestions[:8])
                 log(f"solver: top suggestions = {preview}{' ...' if len(suggestions) > 8 else ''}")
 
-            # Try suggestions until one is accepted by NYT.
+            # Try suggestions until one is accepted by NYT
             evaluations: Optional[List[str]] = None
             guess_used: Optional[str] = None
             for (guess, _h) in suggestions:
-                # Dismiss overlays between turns; sometimes share/login popups appear mid-game.
+                # Dismiss overlays between turns; sometimes share/login popups appear mid-game
                 _dismiss_overlays(page, log_debug=log_debug if debug else None, aggressive=False)
                 evs = _try_submit_guess(
                     page,
@@ -561,7 +567,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     log=log,
                     log_debug=log_debug if debug else None,
                 )
-                # If we didn't get evals, try one aggressive overlay sweep and retry the SAME guess once.
+                # If we didn't get evals, try one aggressive overlay sweep and retry the SAME guess once
                 if evs is None:
                     _dismiss_overlays(page, log_debug=log_debug if debug else None, aggressive=True)
                     evs = _try_submit_guess(

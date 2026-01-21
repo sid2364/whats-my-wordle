@@ -20,6 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+DEFAULT_CACHE_PATH = "~/.cache/wordle-bot/last.json"
+
 
 def _expand(p: str) -> Path:
     return Path(p).expanduser().resolve()
@@ -38,7 +40,7 @@ def _notify(message: str) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Print the latest Wordle bot result.")
-    ap.add_argument("--path", type=str, default="~/.cache/wordle-bot/last.json", help="Path to result JSON.")
+    ap.add_argument("--path", type=str, default=DEFAULT_CACHE_PATH, help="Path to result JSON.")
     ap.add_argument("--notify", action="store_true", help="Send a desktop notification with the result.")
     args = ap.parse_args(argv)
 

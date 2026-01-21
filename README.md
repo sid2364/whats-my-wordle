@@ -212,7 +212,7 @@ The plot shows the distribution of the number of turns taken to solve the puzzle
 ![results.png](results.png)
 
 
-# NYT Wordle bot
+## NYT Wordle bot
 
 The bot `src/bot/nyt_wordle_bot.py` uses Playwright to control a Chromium browser instance. It automatically inputs guesses and reads feedback from the page, allowing it to solve the puzzle without manual input. This is specifically designed for the New York Times Wordle web interface.
 
