@@ -6,16 +6,16 @@ After=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=%h/Forge/whats-my-wordle
+# https://unix.stackexchange.com/questions/505146/getting-systemd-service-logs-faster-from-my-service
 Environment=PYTHONUNBUFFERED=1
 
-# If the laptop just woke/booted, networking/DNS may not be ready yet.
-# Retry a few times rather than failing the whole day.
+# if the laptop just woke/booted, networking/DNS may not be ready yet, retry a few times rather than failing the whole day
 Restart=on-failure
-RestartSec=60
-StartLimitIntervalSec=600
+RestartSec=100
+StartLimitIntervalSec=1000
 StartLimitBurst=5
 
-# Use the repo venv so Playwright is available.
+# Use the repo venv so Playwright is available!
 ExecStart=%h/Forge/whats-my-wordle/.venv/bin/python %h/Forge/whats-my-wordle/src/bot/nyt_wordle_bot.py \
   --headless \
   --verbose \
@@ -23,5 +23,5 @@ ExecStart=%h/Forge/whats-my-wordle/.venv/bin/python %h/Forge/whats-my-wordle/src
   --first-guess salet
   --notify
 
-# If you want to quickly view what happened:
-#   journalctl --user -u wordle-bot.service -n 200 --no-pager
+# quickly see what happened
+# journalctl --user -u wordle-bot.service -n 200 --no-pager
